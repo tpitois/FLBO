@@ -79,35 +79,35 @@ for epoch in range(num_epochs):
     epoch_acc = running_corrects / total_nodes
     print(f"Epoch {epoch}/{num_epochs} - Train Loss: {epoch_loss:.4f} - Acc: {epoch_acc:.4f}")
 
-    print("\n--- Début de l'évaluation géodésique sur le premier chat de test ---")
-    model.eval()
+print("\n--- Début de l'évaluation géodésique sur le premier chat de test ---")
+model.eval()
 
-    # On prend juste le premier chat du set de test
-    test_data = test_dataset[0]
-    x = test_data.x.to(device)
-    L = test_data.L.to(device)
-    y = test_data.y.cpu().numpy()  # Labels en numpy
+# On prend juste le premier chat du set de test
+test_data = test_dataset[0]
+x = test_data.x.to(device)
+L = test_data.L.to(device)
+y = test_data.y.cpu().numpy()  # Labels en numpy
 
-    with torch.no_grad():
-        with torch.amp.autocast('cuda'):
-            outputs = model(x, L)
-            _, preds = torch.max(outputs, 1)
+with torch.no_grad():
+    with torch.amp.autocast('cuda'):
+        outputs = model(x, L)
+        _, preds = torch.max(outputs, 1)
 
-    preds = preds.cpu().numpy()
+preds = preds.cpu().numpy()
 
-    # On récupère les sommets et les faces d'origine du chat
-    # (Si ton transformateur a écrasé data.pos, tu devras peut-être le recharger,
-    #  ou t'assurer que tu l'as gardé dans l'objet Data)
-    V = test_data.pos.numpy()
-    F = test_data.face.t().numpy()
+# On récupère les sommets et les faces d'origine du chat
+# (Si ton transformateur a écrasé data.pos, tu devras peut-être le recharger,
+#  ou t'assurer que tu l'as gardé dans l'objet Data)
+V = test_data.pos.numpy()
+F = test_data.face.t().numpy()
 
-    print("Calcul des chemins géodésiques (ça peut prendre une minute)...")
-    # On calcule les erreurs sur 1000 points aléatoires
-    errors = evaluate_predictions(preds, y, V, F, num_samples=1000)
+print("Calcul des chemins géodésiques (ça peut prendre une minute)...")
+# On calcule les erreurs sur 1000 points aléatoires
+errors = evaluate_predictions(preds, y, V, F, num_samples=1000)
 
-    # On affiche les stats
-    print(f"Erreur géodésique moyenne : {np.mean(errors):.4f}")
-    print(f"Matches parfaits (erreur = 0) : {np.mean(errors == 0) * 100:.2f}%")
+# On affiche les stats
+print(f"Erreur géodésique moyenne : {np.mean(errors):.4f}")
+print(f"Matches parfaits (erreur = 0) : {np.mean(errors == 0) * 100:.2f}%")
 
-    # On trace la courbe ! (Jusqu'à 20% de la taille du chat)
-    plot_pck_curve(errors, max_threshold=0.20, save_path="tosca_evaluation_curve.png")
+# On trace la courbe ! (Jusqu'à 20% de la taille du chat)
+plot_pck_curve(errors, max_threshold=0.20, save_path="tosca_evaluation_curve.png")
