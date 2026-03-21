@@ -34,7 +34,11 @@ class ACSConv(nn.Module):
         out = torch.matmul(feat_0, self.weight[0])
 
         if self.K > 1:
-            Tx_1 = torch.sparse.mm(Ls.float(), Tx_0.float()).to(Tx_0.dtype)
+
+            with torch.autocast(device_type='cuda', enabled=False):
+                Tx_1_32 = torch.sparse.mm(Ls.float(), Tx_0.float())
+
+            Tx_1 = Tx_1_32.to(Tx_0.dtype)
 
             feat_1 = (
                 Tx_1
@@ -46,10 +50,14 @@ class ACSConv(nn.Module):
             out = out + torch.matmul(feat_1, self.weight[1])
 
         for k in range(2, self.K):
-            Tx_2 = (
-                2.0 * torch.sparse.mm(Ls.float(), Tx_1.float()).to(Tx_0.dtype)
-                - Tx_0
-            )
+
+            with torch.autocast(device_type='cuda', enabled=False):
+                Tx_2_32 = (
+                    2.0 * torch.sparse.mm(Ls.float(), Tx_1.float())
+                    - Tx_0.float()
+                )
+
+            Tx_2 = Tx_2_32.to(Tx_0.dtype)
 
             feat_2 = (
                 Tx_2
