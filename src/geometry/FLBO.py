@@ -132,7 +132,8 @@ def build_normalized_block_flbo(W_list, S):
         L_raw = inv_S @ W
 
         # M = full(diag(L)); M1 = sparse(1./sqrt(M))
-        M1_diag = 1.0 / np.sqrt(L_raw.diagonal())
+        diag_L = L_raw.diagonal()
+        M1_diag = 1.0 / np.sqrt(np.abs(diag_L) + 1e-12)
         M1 = sp.diags(M1_diag)
 
         # W_norm = M1 * W * M1
