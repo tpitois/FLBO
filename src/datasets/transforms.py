@@ -44,7 +44,8 @@ class FLBOTransform(object):
 
         # 2. Boucle sur les angles pour construire les Laplaciens
         angles = np.linspace(0, np.pi, self.n_angles, endpoint=False)
-        L_list = []
+        W_list = []
+
 
 
         for angle in angles:
@@ -53,14 +54,10 @@ class FLBOTransform(object):
                 Options(alpha=self.alpha, angle=angle, tau=self.tau)
             )
 
-            W = compute_stiffness_matrix(V, F, D)
-
-            L = S_inv @ W
-
-            L_list.append(L)
+            W_list.append(compute_stiffness_matrix(V, F, D))
 
         # 3. Assemblage du super-tenseur PyTorch (fonction précédente)
-        data.L = build_normalized_block_flbo(L_list)
+        data.L =  build_normalized_block_flbo(W_list, S)
 
         # 5. Labels de correspondance (y)
         # Dans TOSCA, le sommet i du Chat 1 correspond au sommet i du Chat 2

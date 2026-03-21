@@ -110,40 +110,53 @@ def compute_mass_matrix(V: np.ndarray, F: np.ndarray) -> sp.csr_matrix:
     # 4. Matrice creuse
     return sp.diags(vertex_masses, format='csr')
 
-def build_normalized_block_flbo(L_list):
+
+def build_normalized_block_flbo(W_list, S):
     """
-    Normalise une liste d'opérateurs FLBO (scipy.sparse) pour Chebyshev
-    et les assemble en une grande matrice bloc-diagonale au format PyTorch.
+    Traduction exacte du MATLAB des auteurs d'ACSCNN.
 
     Arguments:
-      L_list : Liste de matrices scipy.sparse (ex: [L_0, L_1, ..., L_7])
-               où chaque L = S_inv @ W.
-
-    Retourne:
-      L_torch : torch.sparse.FloatTensor contenant la matrice globale.
+      W_list : Liste des matrices de raideur W pour chaque angle (scipy.sparse)
+      S : Matrice de masse/aire diagonale (scipy.sparse)
     """
     L_norm_list = []
+    n = S.shape[0]
 
-    for L in L_list:
-        # 1. Calcul de la plus grande valeur propre (en module)
-        # L_FLBO étant asymétrique, on utilise eigs (et non eigsh)
+    # 1. Calcul de l'inverse de l'aire (équivalent de 1./area)
+    inv_area = 1.0 / S.diagonal()
+    inv_S = sp.diags(inv_area)
 
-        vals, _ = eigs(L, k=1, which='LM')
-        lambda_max = np.real(vals[0])
+    for W in W_list:
+        # --- ETAPE 1 : shift_norm_laplacian (MATLAB) ---
+        # L = inv_S @ W
+        L_raw = inv_S @ W
 
-        # 2. Normalisation de Chebyshev (Shift and Scale)
-        # Formule : L_norm = (2 / lambda_max) * L - I
-        I = sp.eye(L.shape[0], format='csr')
-        L_norm = (2.0 / lambda_max) * L - I
+        # M = full(diag(L)); M1 = sparse(1./sqrt(M))
+        M1_diag = 1.0 / np.sqrt(L_raw.diagonal())
+        M1 = sp.diags(M1_diag)
+
+        # W_norm = M1 * W * M1
+        W_norm = M1 @ W @ M1
+
+        # W_norm = (W_norm + W_norm') / 2.0; % keep symmetric
+        W_norm = (W_norm + W_norm.T) / 2.0
+
+        # --- ETAPE 2 : shift_laplacian (MATLAB) ---
+        L_temp = inv_S @ W_norm
+
+        # lmax = eigs(W_norm, A, 1) -> équivalent à eigs(inv_S @ W_norm, k=1)
+        vals, _ = eigs(L_temp, k=1, which='LM')
+        lmax = np.real(vals[0])
+
+        # L = (2 / lmax) * L_temp - I
+        I = sp.eye(n, format='csr')
+        L_norm = (2.0 / lmax) * L_temp - I
 
         L_norm_list.append(L_norm)
 
-    # 3. Assemblage en une seule grande matrice bloc-diagonale
-    # Si on a 8 matrices de taille (N, N), on obtient une (8N, 8N)
+    # --- ETAPE 3 : Assemblage du bloc diagonal (PyTorch) ---
     L_block = sp.block_diag(L_norm_list, format='coo')
 
-    # 4. Conversion ultra-rapide vers PyTorch Sparse Tensor
-    # On évite les boucles en passant directement par les tableaux internes du format COO
     indices = np.vstack((L_block.row, L_block.col))
     indices_torch = torch.from_numpy(indices).long()
     values_torch = torch.from_numpy(L_block.data).float()
@@ -151,5 +164,4 @@ def build_normalized_block_flbo(L_list):
 
     L_torch = torch.sparse_coo_tensor(indices_torch, values_torch, shape_torch)
 
-    # coalesce() fusionne les doublons et optimise l'agencement mémoire pour le GPU
     return L_torch.coalesce()
