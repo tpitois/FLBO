@@ -4,7 +4,7 @@ from torch.nn.parameter import Parameter
 
 
 class ACSConv(nn.Module):
-    def __init__(self, in_size, out_size, n_angles=8, K=16, bias=True):
+    def __init__(self, in_size, out_size, n_angles=8, K=8, bias=True):
         super().__init__()
         self.in_size = in_size
         self.out_size = out_size
@@ -23,21 +23,40 @@ class ACSConv(nn.Module):
     def forward(self, x, Ls):
         N = x.size(0)
         Tx_0 = x.repeat(self.n_angles, 1)
-        out = torch.matmul(Tx_0.view(self.n_angles, N, self.in_size).permute(1, 0, 2).contiguous().view(N,
-                                                                                                        self.n_angles * self.in_size),
-                           self.weight[0])
+
+        feat_0 = (
+            Tx_0
+            .view(self.n_angles, N, self.in_size)
+            .permute(1, 0, 2).contiguous()
+            .view(N,self.n_angles * self.in_size)
+        )
+
+        out = torch.matmul(feat_0, self.weight[0])
 
         if self.K > 1:
-            Tx_1 = torch.matmul(Ls, Tx_0)  # [H*N,P]
-            out = out + torch.matmul(Tx_1.view(self.n_angles, N, self.in_size).permute(1, 0, 2).contiguous().view(N,
-                                                                                                                  self.n_angles * self.in_size),
-                                     self.weight[1])
+            Tx_1 = torch.sparse.mm(Ls, Tx_0)
+
+            feat_1 = (
+                Tx_1
+                .view(self.n_angles, N, self.in_size)
+                .permute(1, 0, 2).contiguous()
+                .view(N,self.n_angles * self.in_size)
+            )
+
+            out = out + torch.matmul(feat_1, self.weight[1])
 
         for k in range(2, self.K):
-            Tx_2 = torch.matmul(2 * Ls, Tx_1) - Tx_0
-            out = out + torch.matmul(Tx_2.view(self.n_angles, N, self.in_size).permute(1, 0, 2).contiguous().view(N,
-                                                                                                                  self.n_angles * self.in_size),
-                                     self.weight[k])
+            Tx_2 = 2.0 * torch.sparse.mm(Ls, Tx_1) - Tx_0
+
+            feat_2 = (
+                Tx_2
+                .view(self.n_angles, N, self.in_size)
+                .permute(1, 0, 2).contiguous()
+                .view(N,self.n_angles * self.in_size)
+            )
+
+            out = out + torch.matmul(feat_2, self.weight[k])
+
             Tx_0, Tx_1 = Tx_1, Tx_2
 
         if self.bias is not None:
