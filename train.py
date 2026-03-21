@@ -42,6 +42,8 @@ criterion = torch.nn.CrossEntropyLoss()
 # ==========================================
 num_epochs = 100
 
+scaler = torch.amp.GradScaler('cuda')
+
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -56,13 +58,15 @@ for epoch in range(num_epochs):
 
         optimizer.zero_grad()
 
-        # Forward pass (attention: si PyG rajoute une dimension de batch, il faut l'enlever)
-        # ACSConv s'attend à du [N, in_size]
-        outputs = model(x, L)
+        # 2. On encapsule le forward pass et la loss dans l'autocast
+        with torch.amp.autocast('cuda'):
+            outputs = model(x, L)
+            loss = criterion(outputs, y)
 
-        loss = criterion(outputs, y)
-        loss.backward()
-        optimizer.step()
+        # 3. On utilise le scaler pour la backward pass
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         _, preds = torch.max(outputs, 1)
         running_loss += loss.item()
