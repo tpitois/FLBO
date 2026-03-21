@@ -1,12 +1,14 @@
 # ==========================================
 # 1. PRÉPARATION DES DONNÉES
 # ==========================================
+import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
 from src.datasets.TOSCA import TOSCA
 from src.datasets.transforms import FLBOTransform
 from src.models.ascnn import ACSCNN
+from src.utils.eval import evaluate_predictions, plot_pck_curve
 
 print("Chargement et pré-traitement du dataset TOSCA (Cat)...")
 # PyG va automatiquement télécharger TOSCA, appliquer le pre_transform, et cacher le résultat.
@@ -77,19 +79,35 @@ for epoch in range(num_epochs):
     epoch_acc = running_corrects / total_nodes
     print(f"Epoch {epoch}/{num_epochs} - Train Loss: {epoch_loss:.4f} - Acc: {epoch_acc:.4f}")
 
-    # --- Mode Évaluation (Test) ---
+    print("\n--- Début de l'évaluation géodésique sur le premier chat de test ---")
     model.eval()
-    test_corrects = 0
-    test_nodes = 0
-    with torch.no_grad():
-        for data in test_loader:
-            x = data.x.to(device)
-            L = data.L.to(device)
-            y = data.y.to(device)
 
+    # On prend juste le premier chat du set de test
+    test_data = test_dataset[0]
+    x = test_data.x.to(device)
+    L = test_data.L.to(device)
+    y = test_data.y.cpu().numpy()  # Labels en numpy
+
+    with torch.no_grad():
+        with torch.amp.autocast('cuda'):
             outputs = model(x, L)
             _, preds = torch.max(outputs, 1)
-            test_corrects += torch.sum(preds == y).item()
-            test_nodes += y.size(0)
 
-    print(f"Test Acc: {test_corrects / test_nodes:.4f}")
+    preds = preds.cpu().numpy()
+
+    # On récupère les sommets et les faces d'origine du chat
+    # (Si ton transformateur a écrasé data.pos, tu devras peut-être le recharger,
+    #  ou t'assurer que tu l'as gardé dans l'objet Data)
+    V = test_data.pos.numpy()
+    F = test_data.face.t().numpy()
+
+    print("Calcul des chemins géodésiques (ça peut prendre une minute)...")
+    # On calcule les erreurs sur 1000 points aléatoires
+    errors = evaluate_predictions(preds, y, V, F, num_samples=1000)
+
+    # On affiche les stats
+    print(f"Erreur géodésique moyenne : {np.mean(errors):.4f}")
+    print(f"Matches parfaits (erreur = 0) : {np.mean(errors == 0) * 100:.2f}%")
+
+    # On trace la courbe ! (Jusqu'à 20% de la taille du chat)
+    plot_pck_curve(errors, max_threshold=0.20, save_path="tosca_evaluation_curve.png")
