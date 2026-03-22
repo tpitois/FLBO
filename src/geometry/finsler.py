@@ -27,7 +27,7 @@ def compute_D_finsler(U: np.ndarray, options: Options) -> np.ndarray:
     D_mat = np.diag([1.0 / (1.0 + options.alpha), 1.0, 1.0])
 
     # U_rot.transpose(0, 2, 1) est U^T pour chaque face
-    M = U_rot.transpose(0, 2, 1) @ D_mat @ U_rot
+    H = U_rot.transpose(0, 2, 1) @ D_mat @ U_rot
 
     # 3. Métrique de Randers et dualité
     # On sait mathématiquement que <w, Mw> = tau^2 puisque w = tau * U2 et D2 = 1
@@ -39,18 +39,18 @@ def compute_D_finsler(U: np.ndarray, options: Options) -> np.ndarray:
 
     # Calcul de w* (vecteur dual)
     # np.einsum('mij,mj->mi', M, w) est le produit matrice-vecteur M @ w
-    Mw = np.einsum('mij,mj->mi', M, w)
-    wstar = -Mw / eta
+    Hw = np.einsum('mij,mj->mi', H, w)
+    wstar = -Hw / eta
 
-    # Produit externe w* @ w*^T
-    wstar_outer = np.einsum('mi,mj->mij', wstar, wstar)
 
     # 4. Tenseur de Finsler
     # M_star = (Mw @ Mw^T + eta * M) / eta^2
-    Mw_outer = np.einsum('mi,mj->mij', Mw, Mw)
-    Mstar = (Mw_outer + eta * M) / (eta ** 2)
+    Mstar = (
+        (eta * H + np.einsum('mi,mj->mij', Hw, Hw))
+        / (eta ** 2)
+    )
 
-    D_finsler = Mstar - wstar_outer
+    D_finsler = Mstar - np.einsum('mi,mj->mij', wstar, wstar)
 
     # Nettoyage des petites erreurs numériques
     D_finsler[np.abs(D_finsler) < 1e-10] = 0.0
