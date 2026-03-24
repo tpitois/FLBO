@@ -1,11 +1,9 @@
 import igl
 import numpy as np
 
+
 def compute_local_frames(V, F):
-    """
-    Calcule le repère orthonormé U_ijk = (u_M, u_m, n) pour chaque face.
-    Retourne un tenseur U de forme (nombre_de_faces, 3, 3).
-    """
+
     n = igl.per_face_normals(V, F, np.array([0.0, 0.0, 1.0]))
 
     pd1, pd2, pv1, pv2, bad_vertices = igl.principal_curvature(V, F)
@@ -20,7 +18,6 @@ def compute_local_frames(V, F):
 
         dir_max = pd1[face[0]]
 
-        # Projection de dir_max sur le plan tangent de la face
         u_M_f = dir_max - np.dot(dir_max, n_f) * n_f
 
         norm = np.linalg.norm(u_M_f)
