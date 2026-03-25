@@ -171,6 +171,7 @@ def plot_diffusions_comparison(V, F, source, t, solve_heat_diffusion, options_li
     fig.update_layout(
         **{f"scene{j + 1 if j > 0 else ''}": scene_layout for j in range(num_plots)},
         margin=dict(l=0, r=0, b=0, t=50),
+        dragmode="orbit",
     )
 
     return fig
