@@ -1,5 +1,3 @@
-import os
-
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.io import read_off
 from tqdm.auto import tqdm

@@ -1,3 +1,4 @@
+import igl
 import torch
 import numpy as np
 
@@ -10,18 +11,22 @@ from src.geometry.descriptors import compute_eigen_decomposition, compute_wks
 
 
 class FLBOTransform(object):
-    def __init__(self, n_angles=8, alpha=10.0, tau=0.5, num_wks=100, k_eigen=100):
+    def __init__(self, n_angles=8, alpha=10.0, tau=0.5, num_wks=100, k_eigen=100, decimate=None):
         self.n_angles = n_angles
         self.alpha = alpha
         self.tau = tau
         self.k_eigen = k_eigen
         self.num_wks = num_wks
+        self.decimate = decimate
 
     def __call__(self, data):
         V = data.pos.numpy().astype(np.float64)
         V = V / np.max(np.linalg.norm(V - np.mean(V, axis=0), axis=1))
 
         F = data.face.t().numpy().astype(np.int64)
+
+        if self.decimate is not None:
+            V, F, _, _ = igl.decimate(V, F, self.decimate)
 
         U = compute_local_frames(V, F)
 
