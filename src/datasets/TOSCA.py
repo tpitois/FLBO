@@ -2,6 +2,7 @@ import os
 
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.io import read_off
+from tqdm.auto import tqdm
 
 
 class TOSCA(InMemoryDataset):
@@ -27,11 +28,14 @@ class TOSCA(InMemoryDataset):
     def process(self):
         data_list = []
 
-        for path in self.raw_paths:
+        for path in tqdm(self.raw_paths, desc='Reading data'):
             data = read_off(path)
             data_list.append(data)
 
         if self.pre_transform is not None:
-            data_list = [self.pre_transform(data) for data in data_list]
+            data_list_processed = [
+                self.pre_transform(data)
+                for data in tqdm(data_list, desc='Processing data')
+            ]
 
-        self.save(data_list, self.processed_paths[0])
+        self.save(data_list_processed, self.processed_paths[0])
