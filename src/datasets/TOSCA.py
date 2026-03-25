@@ -28,13 +28,10 @@ class TOSCA(InMemoryDataset):
         data_list = []
 
         for path in self.raw_paths:
-            print(f"Lecture de {os.path.basename(path)}...")
             data = read_off(path)
             data_list.append(data)
 
         if self.pre_transform is not None:
-            print("Application du pré-traitement (FLBO, WKS...)...")
             data_list = [self.pre_transform(data) for data in data_list]
 
         self.save(data_list, self.processed_paths[0])
-        print("Dataset traité et sauvegardé avec succès !")

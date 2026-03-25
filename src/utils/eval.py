@@ -1,47 +1,35 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.csgraph import dijkstra
-import matplotlib.pyplot as plt
 
 
 def compute_surface_area(V, F):
-    """
-    Calcule l'aire totale d'un maillage triangulaire.
-    V: (N, 3) coordonnées des sommets
-    F: (M, 3) indices des faces
-    """
     v1, v2, v3 = V[F].transpose(1, 0, 2)
 
-    return 0.5 * np.sum(np.linalg.norm(np.cross(v2 - v1, v3- v1), axis=1))
+    return 0.5 * np.sum(np.linalg.norm(np.cross(v2 - v1, v3 - v1), axis=1))
 
 
 def compute_adjacency_matrix(V, F):
-    """
-    Construit la matrice d'adjacence pondérée par la distance euclidienne des arêtes.
-    """
     N = V.shape[0]
     edges = np.vstack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]])
 
-    # Distances euclidiennes pour chaque arête
     distances = np.linalg.norm(V[edges[:, 0]] - V[edges[:, 1]], axis=1)
 
-    # Matrice creuse symétrique
     W = sp.coo_matrix((distances, (edges[:, 0], edges[:, 1])), shape=(N, N))
     W = W + W.T
     return W
 
 
 def evaluate_predictions(preds, labels, V, F, num_samples=1000):
-    """
-    Calcule l'erreur géodésique normalisée.
-    Pour aller vite, on n'évalue souvent que sur un sous-échantillon aléatoire (ex: 1000 points).
-    """
     area = compute_surface_area(V, F)
     norm_factor = np.sqrt(area)
 
     W = compute_adjacency_matrix(V, F)
 
-    eval_indices = np.random.choice(len(labels), min(num_samples, len(labels)), replace=False)
+    eval_indices = np.random.choice(
+        len(labels), min(num_samples, len(labels)), replace=False
+    )
 
     errors = []
 
@@ -71,14 +59,13 @@ def plot_pck_curve(errors, max_threshold=0.25, num_bins=100, save_path="pck_curv
         pck.append(correct_percentage)
 
     plt.figure(figsize=(8, 6))
-    plt.plot(thresholds, pck, linewidth=2, color='b')
+    plt.plot(thresholds, pck, linewidth=2, color="b")
     plt.title("Correspondences Evaluation (PCK Curve)")
     plt.xlabel("Geodesic Error Threshold (D)")
     plt.ylabel("Percentage of Matches (%)")
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True, linestyle="--", alpha=0.7)
     plt.xlim([0, max_threshold])
     plt.ylim([0, 105])
 
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close()
-    print(f"📉 Courbe d'évaluation sauvegardée sous : {save_path}")
