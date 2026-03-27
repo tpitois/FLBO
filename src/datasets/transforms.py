@@ -28,6 +28,9 @@ class FLBOTransform(object):
         if self.decimate is not None:
             V, F, _, _ = igl.decimate(V, F, self.decimate)
 
+            data.pos = torch.from_numpy(V).float()
+            data.face = torch.from_numpy(F).long().t().contiguous()
+
         U = compute_local_frames(V, F)
 
         S = compute_mass_matrix(V, F)
