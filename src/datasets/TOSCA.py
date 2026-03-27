@@ -18,11 +18,16 @@ class TOSCA(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-        names = []
-        for cat in self.categories:
-            for i in range(11):
-                names.append(f"{cat}{i}.off")
-        return names
+        if not os.path.exists(self.raw_dir):
+            return []
+
+        files = []
+        for f in os.listdir(self.raw_dir):
+            if f.endswith(".off"):
+                if any(f.startswith(cat) for cat in self.categories):
+                    files.append(f)
+
+        return sorted(files)
 
     @property
     def processed_file_names(self):
