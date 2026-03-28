@@ -48,24 +48,3 @@ def evaluate_predictions(preds, labels, V, F, num_samples=1000):
         errors.append(normalized_error)
 
     return np.array(errors)
-
-
-def plot_pck_curve(errors, max_threshold=0.25, num_bins=100, save_path="pck_curve.png"):
-    thresholds = np.linspace(0, max_threshold, num_bins)
-    pck = []
-
-    for t in thresholds:
-        correct_percentage = np.mean(errors <= t) * 100
-        pck.append(correct_percentage)
-
-    plt.figure(figsize=(8, 6))
-    plt.plot(thresholds, pck, linewidth=2, color="b")
-    plt.title("Correspondences Evaluation (PCK Curve)")
-    plt.xlabel("Geodesic Error Threshold (D)")
-    plt.ylabel("Percentage of Matches (%)")
-    plt.grid(True, linestyle="--", alpha=0.7)
-    plt.xlim([0, max_threshold])
-    plt.ylim([0, 105])
-
-    plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.close()
