@@ -20,7 +20,7 @@ def compute_eigen_decomposition(W, S, k=100):
 
 def compute_wks(evals, evecs, num_energies=100):
     """
-    Calcule le Wave Kernel Signature (WKS) de manière sécurisée.
+    Calcule le Wave Kernel Signature (WKS).
     """
     N = evecs.shape[0]
     WKS = np.zeros((N, num_energies))
